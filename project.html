@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SQL Injection Vulnerability Scanner</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .container {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="url"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .results {
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        .result-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: #fff;
+            border-left: 4px solid #3498db;
+        }
+        .vulnerable {
+            border-left-color: #e74c3c;
+        }
+        .safe {
+            border-left-color: #2ecc71;
+        }
+        .loading {
+            display: none;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .test-cases {
+            margin-top: 20px;
+        }
+        .test-case {
+            background-color: #f0f0f0;
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            font-family: monospace;
+            cursor: pointer;
+        }
+        .test-case:hover {
+            background-color: #e0e0e0;
+        }
+        .tab {
+            overflow: hidden;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+            border-radius: 4px 4px 0 0;
+        }
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 14px 16px;
+            transition: 0.3s;
+            color: #333;
+        }
+        .tab button:hover {
+            background-color: #ddd;
+        }
+        .tab button.active {
+            background-color: #3498db;
+            color: white;
+        }
+        .tabcontent {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            background-color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>SQL Injection Vulnerability Scanner</h1>
+    <p>This tool helps identify potential SQL injection vulnerabilities in web applications by sending carefully crafted test payloads and analyzing responses.</p>
+    
+    <div class="tab">
+        <button class="tablinks active" onclick="openTab(event, 'scan')">Scanner</button>
+        <button class="tablinks" onclick="openTab(event, 'about')">About</button>
+    </div>
+    
+    <div id="scan" class="tabcontent" style="display: block;">
+        <div class="container">
+            <div class="input-group">
+                <label for="target-url">Target URL:</label>
+                <input type="url" id="target-url" placeholder="https://example.com/login" required>
+            </div>
+            
+            <div class="input-group">
+                <label for="parameter">Parameter to test (e.g., 'username'):</label>
+                <input type="text" id="parameter" placeholder="username" required>
+            </div>
+            
+            <div class="input-group">
+                <label>Test Cases:</label>
+                <div class="test-cases">
+                    <h4>Basic Payloads</h4>
+                    <div class="test-case" onclick="useTestCase(this)">' OR '1'='1' --</div>
+                    <div class="test-case" onclick="useTestCase(this)">" OR 1=1 --</div>
+                    <div class="test-case" onclick="useTestCase(this)">admin'--</div>
+                    
+                    <h4>Advanced Payloads</h4>
+                    <div class="test-case" onclick="useTestCase(this)">1' ORDER BY 1--</div>
+                    <div class="test-case" onclick="useTestCase(this)">1' AND 1=CONVERT(int,(SELECT table_name FROM information_schema.tables))--</div>
+                    <div class="test-case" onclick="useTestCase(this)">1 OR EXISTS(SELECT * FROM users WHERE username LIKE 'admin%') AND 'a'='a</div>
+                    
+                    <h4>Time-Based</h4>
+                    <div class="test-case" onclick="useTestCase(this)">1'; WAITFOR DELAY '0:0:5'--</div>
+                    <div class="test-case" onclick="useTestCase(this)">1' OR SLEEP(5)--</div>
+                </div>
+            </div>
+            
+            <button onclick="startScan()">Start Scan</button>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Scanning in progress...</p>
+            </div>
+            
+            <div class="results" id="results"></div>
+        </div>
+    </div>
+    
+    <div id="about" class="tabcontent">
+        <h2>About This Tool</h2>
+        <p>This SQL Injection Vulnerability Scanner is designed to help developers and security professionals identify potential SQL injection vulnerabilities in web applications.</p>
+        
+        <h3>How It Works</h3>
+        <ol>
+            <li>It sends carefully crafted test payloads to the specified URL parameter</li>
+            <li>Analyzes the responses for patterns that indicate potential SQL injection vulnerabilities</li>
+            <li>Reports the findings without attempting any harmful exploitation</li>
+        </ol>
+        
+        <h3>Ethical Use</h3>
+        <p>This tool should only be used with proper authorization on systems you own or have permission to test. Unauthorized security testing is illegal.</p>
+        
+        <h3>Test Cases</h3>
+        <p>The scanner uses common SQL injection test patterns that trigger error messages or unexpected behavior when a vulnerability exists.</p>
+    </div>
+
+    <script>
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+        
+        function useTestCase(element) {
+            document.getElementById('parameter').value = element.textContent.trim();
+        }
+        
+        async function startScan() {
+            const url = document.getElementById('target-url').value;
+            const param = document.getElementById('parameter').value;
+            
+            if (!url || !param) {
+                alert('Please enter both URL and parameter');
+                return;
+            }
+            
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').innerHTML = '';
+            
+            const testPayloads = [
+                "' OR '1'='1' --",
+                "\" OR 1=1 --",
+                "admin'--",
+                "1' ORDER BY 1--",
+                "1' AND 1=CONVERT(int,(SELECT table_name FROM information_schema.tables))--",
+                "1'; WAITFOR DELAY '0:0:5'--"
+            ];
+            
+            const scanResults = [];
+            
+            for (const payload of testPayloads) {
+                try {
+                    const formData = new FormData();
+                    formData.append(param, payload);
+                    
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const responseText = await response.text();
+                    
+                    // Check for common SQL error patterns
+                    const isVulnerable = 
+                        responseText.includes('SQL syntax') ||
+                        responseText.includes('syntax error') ||
+                        response.status === 500;
+                        
+                    scanResults.push({
+                        payload: payload,
+                        status: isVulnerable ? 'Vulnerable' : 'Safe',
+                        details: isVulnerable ? 'Potential SQL injection detected' : 'No immediate vulnerabilities found',
+                        recommendation: isVulnerable 
+                            ? 'Implement parameterized queries and input validation' 
+                            : 'Standard security practices detected'
+                    });
+                    
+                } catch (error) {
+                    console.error('Scan error:', error);
+                }
+            }
+            
+            document.getElementById('loading').style.display = 'none';
+            displayResults(scanResults);
+        }
+        
+        function displayResults(results) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (!results || results.length === 0) {
+                resultsDiv.innerHTML = '<div class="result-item"><p>No results could be generated. Please check the URL and try again.</p></div>';
+                return;
+            }
+            
+            results.forEach(result => {
+                try {
+                    const item = document.createElement('div');
+                    item.className = `result-item ${result.status.toLowerCase()}`;
+                    
+                    item.innerHTML = `
+                        <p><strong>Payload:</strong> ${escapeHtml(result.payload)}</p>
+                        <p><strong>Status:</strong> ${result.status}</p>
+                        <p><strong>Details:</strong> ${result.details}</p>
+                        <p><strong>Recommendation:</strong> ${result.recommendation}</p>
+                        ${result.status === 'Vulnerable' ? '<p class="warning">Warning: This requires immediate attention!</p>' : ''}
+                    `;
+                    
+                    resultsDiv.appendChild(item);
+                } catch (error) {
+                    console.error('Error displaying result:', error);
+                }
+            });
+        }
+        
+        function escapeHtml(text) {
+            return text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+    </script>
+</body>
+</html>
